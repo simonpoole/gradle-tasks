@@ -16,4 +16,4 @@ Expects GROUP, ARTIFACT_ID, NAME, REPO, to be set and BINTRAY_USER BINTRAY_KEY t
 
 Include in build.gradle with
        
-       apply from: 'https://raw.githubusercontent.com/simonpoole/gradle-tasks/publish-on-bintray-android'
+       apply from: 'https://raw.githubusercontent.com/simonpoole/gradle-tasks/master/publish-on-bintray-android'

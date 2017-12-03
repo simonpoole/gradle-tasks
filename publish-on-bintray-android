@@ -1,7 +1,10 @@
+//
+// publish an android library on bintray
+// expects GROUP ARTIFACT_ID NAME REPO to be set
+// and BINTRAY_USER BINTRAY_KEY to be in the environment
 
-plugins {
-  id "com.jfrog.bintray" version "1.7.1"
-}
+
+apply plugin:  "com.jfrog.bintray"
 apply plugin: 'maven-publish'
 
 android.libraryVariants.all { variant ->
@@ -9,6 +12,7 @@ android.libraryVariants.all { variant ->
     description "Generates Javadoc for $variant.name."
     group "Documentation"
     source = variant.javaCompile.source
+    destinationDir = file(buildDir.getPath() + "/docs/" + variant.name +  "/javadoc")
     classpath = files(variant.javaCompile.classpath.files) + files(android.bootClasspath) + files(variant.javaCompile.destinationDir)
     options.links("http://docs.oracle.com/javase/7/docs/api/");
     options.links("http://d.android.com/reference/");
@@ -17,20 +21,14 @@ android.libraryVariants.all { variant ->
   }
 }
 
-ext {
-	// hardwiring this is ugly but it does work
-    releaseSource = file('src/main/java/ch/poole/openinghoursfragment')
-    releaseJavadoc = file('build/docs/javadoc')
-}
-
 task sourcesJar(type: Jar) {
-	from releaseSource
+	from android.sourceSets.main.java.srcDirs
 	classifier = 'sources'
 }
 
 task javadocJar(type: Jar, dependsOn: 'generateReleaseJavadoc') {
 	classifier = 'javadoc'
-	from releaseJavadoc
+	from file(buildDir.getPath() + "/docs/release/javadoc")
 	//	options.encoding = 'UTF-8'
 }
 
@@ -40,10 +38,10 @@ publishing {
     publications {
         thisLibrary(MavenPublication) {
             groupId GROUP
-            artifactId POM_ARTIFACT_ID
+            artifactId ARTIFACT_ID
 			artifact sourcesJar 
 			artifact javadocJar 
-			artifact("$buildDir/outputs/aar/" + POM_ARTIFACT_ID + *-release.aar")
+			artifact("$buildDir/outputs/aar/" + ARTIFACT_ID + "-release.aar")
 			
 			//The publication doesn't know about our dependencies, so we have to manually add them to the pom
 			// see https://stackoverflow.com/questions/24743562/gradle-not-including-dependencies-in-published-pom-xml
@@ -65,12 +63,12 @@ publishing {
 bintray {
     user = System.getenv('BINTRAY_USER')
     key = System.getenv('BINTRAY_KEY')
-    publications = [thisLibrary]
+    publications = ['thisLibrary']
     pkg {
-        repo = 'android'
-        name = "${libName}"
+        repo = REPO
+        name = NAME
         licenses = ['BSD 3-Clause']
-        vcsUrl = 'https://github.com/simonpoole/' + POM_ARTIFACT_ID + '.git'
+        vcsUrl = VCSURL
         version {
         	name = "${project.version}"
 			released  = new Date()

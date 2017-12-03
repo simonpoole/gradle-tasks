@@ -1,0 +1,48 @@
+// generate eclipse classpath for android projects 
+
+apply plugin: 'eclipse'
+
+eclipse {
+    classpath {
+        plusConfigurations += [ configurations.compile, configurations.testCompile, configurations.androidTestCompile ]
+
+        file {
+            beforeMerged { classpath ->
+                classpath.entries.add(new org.gradle.plugins.ide.eclipse.model.SourceFolder("src/main/java", "bin"))
+                classpath.entries.add(new org.gradle.plugins.ide.eclipse.model.SourceFolder("src/test/java", "bin"))
+                classpath.entries.add(new org.gradle.plugins.ide.eclipse.model.SourceFolder("src/androidTest/java", "bin"))
+                // Hardcoded to use debug configuration
+                classpath.entries.add(new org.gradle.plugins.ide.eclipse.model.SourceFolder("build/generated/source/r/debug", "bin"))
+                classpath.entries.add(new org.gradle.plugins.ide.eclipse.model.SourceFolder("build/generated/source/buildConfig/debug", "bin"))
+                classpath.entries.add(new org.gradle.plugins.ide.eclipse.model.SourceFolder("build/generated/source/aidl/debug", "bin"))
+            }
+
+            whenMerged { classpath ->
+                def aars = []
+                classpath.entries.each { dep ->
+                    if (dep.path.toString().endsWith(".aar")) {
+                        def explodedDir = new File(projectDir, "build/intermediates/exploded-aar/" + dep.moduleVersion.group + "/" + dep.moduleVersion.name + "/" + dep.moduleVersion.version + "/jars/")
+                        if (explodedDir.exists()) {
+                            explodedDir.eachFileRecurse(groovy.io.FileType.FILES) {
+                                if (it.getName().endsWith("jar")) {
+                                    def aarJar = new org.gradle.plugins.ide.eclipse.model.Library(fileReferenceFactory.fromFile(it))
+                                    aarJar.sourcePath = dep.sourcePath
+                                    aars.add(aarJar)
+                                }
+                            }
+                        } else {
+                            println "Warning: Missing " + explodedDir
+                        }
+                    }
+                }
+                classpath.entries.removeAll { it.path.endsWith(".aar") }
+                classpath.entries.addAll(aars)
+
+                def androidJar = new org.gradle.plugins.ide.eclipse.model.Library(
+                    fileReferenceFactory.fromPath("${android.sdkDirectory}/platforms/" + android.compileSdkVersion + "/android.jar"))
+                androidJar.sourcePath = fileReferenceFactory.fromPath("${android.sdkDirectory}/sources/" + android.compileSdkVersion)
+                classpath.entries.add(androidJar)
+            }
+        }
+    }
+}

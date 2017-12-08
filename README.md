@@ -2,7 +2,7 @@
 
 ## eclipse-android
 
-Create classpath for android style project layouts, iirc based on something from stackoverflow, a bit hacky but works
+Create classpath for android style project layouts, iirc based on something from stackoverflow, a bit hacky but works. For sub projects it will use the roots project name plus the path to the subject as the eclipse project name to avoid naming clashes.
 
 Include in build.gradle with 
        

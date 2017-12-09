@@ -3,7 +3,11 @@
 // expects GROUP ARTIFACT_ID NAME REPO to be set
 // and BINTRAY_USER BINTRAY_KEY to be in the environment
 
-
+repositories {
+  mavenCentral()
+  jcenter()
+}
+	
 apply plugin:  "com.jfrog.bintray"
 apply plugin: 'maven-publish'
 

@@ -42,6 +42,17 @@ eclipse {
                     fileReferenceFactory.fromPath("${android.sdkDirectory}/platforms/" + android.compileSdkVersion + "/android.jar"))
                 androidJar.sourcePath = fileReferenceFactory.fromPath("${android.sdkDirectory}/sources/" + android.compileSdkVersion)
                 classpath.entries.add(androidJar)
+              
+              	// this is a fudge, the eclipse plugin uses the project names for paths of subprojects, 
+              	// which naturally breaks the real classpath if different from the actual directory names
+              	if (project != rootProject) {
+               		classpath.entries.each { sub ->
+                		if (sub.kind == 'src' && sub.path.toString().startsWith('/' + rootProject.name + '-')) {
+                			def p = sub.path.toString().replace(rootProject.name + '-', '');                                                         
+                			sub.path = new File(p)                                                      
+                		}
+                	}
+                }
             }
         }
     }
@@ -49,7 +60,7 @@ eclipse {
 
 eclipseClasspath.dependsOn "generateDebugSources"
 
-// user an unique name for subprojects
+// user an unique name for subprojects, note that we undo this above for the classpath
 if (project != rootProject) {
 	eclipse.project.name = (rootProject.name + project.path).replaceAll(':', '-')
 }

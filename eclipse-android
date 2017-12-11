@@ -47,8 +47,9 @@ eclipse {
               	// which naturally breaks the real classpath if different from the actual directory names
               	if (project != rootProject) {
                		classpath.entries.each { sub ->
-                		if (sub.kind == 'src' && sub.path.toString().startsWith('/' + rootProject.name + '-')) {
-                			def p = sub.path.toString().replace(rootProject.name + '-', '');                                                         
+               			def fudge = rootProject.name + '-'
+                		if (sub.kind == 'src' && sub.path.toString().startsWith('/' + fudge)) {
+                			def p = sub.path.toString().replace(fudge, '');                                                         
                 			sub.path = new File(p)                                                      
                 		}
                 	}

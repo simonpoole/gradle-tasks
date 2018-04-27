@@ -1,0 +1,72 @@
+// generate eclipse classpath for android projects - version for android plugin 3 and gradle 3
+
+apply plugin: 'eclipse'
+
+eclipse {
+    classpath {
+        // this is awlful but works ......
+        // both gradles and googles documentation of the changes wrt gradle 3.0 seems to not only be vague but outright wrong
+        configurations.implementation.setCanBeResolved(true)
+        configurations.testImplementation.setCanBeResolved(true)
+        configurations.androidTestImplementation.setCanBeResolved(true)
+        plusConfigurations += [ configurations.implementation, configurations.testImplementation, configurations.androidTestImplementation ]
+
+        file {
+            beforeMerged { classpath ->
+                classpath.entries.add(new org.gradle.plugins.ide.eclipse.model.SourceFolder("src/main/java", "bin"))
+                classpath.entries.add(new org.gradle.plugins.ide.eclipse.model.SourceFolder("src/test/java", "bin"))
+                classpath.entries.add(new org.gradle.plugins.ide.eclipse.model.SourceFolder("src/androidTest/java", "bin"))
+                // Hardcoded to use debug configuration
+                classpath.entries.add(new org.gradle.plugins.ide.eclipse.model.SourceFolder("build/generated/source/r/debug", "bin"))
+                classpath.entries.add(new org.gradle.plugins.ide.eclipse.model.SourceFolder("build/generated/source/buildConfig/debug", "bin"))
+                classpath.entries.add(new org.gradle.plugins.ide.eclipse.model.SourceFolder("build/generated/source/aidl/debug", "bin"))
+            }
+
+            whenMerged { classpath ->
+                def aars = []
+                classpath.entries.each { dep ->
+                    if (dep.path.toString().endsWith(".aar")) {
+                        def explodedDir = new File(projectDir, "build/intermediates/exploded-aar/" + dep.moduleVersion.group + "/" + dep.moduleVersion.name + "/" + dep.moduleVersion.version + "/jars/")
+                        if (explodedDir.exists()) {
+                            explodedDir.eachFileRecurse(groovy.io.FileType.FILES) {
+                                if (it.getName().endsWith("jar")) {
+                                    def aarJar = new org.gradle.plugins.ide.eclipse.model.Library(fileReferenceFactory.fromFile(it))
+                                    aarJar.sourcePath = dep.sourcePath
+                                    aars.add(aarJar)
+                                }
+                            }
+                        } else {
+                            println "Warning: Missing " + explodedDir
+                        }
+                    }
+                }
+                classpath.entries.removeAll { it.path.endsWith(".aar") }
+                classpath.entries.addAll(aars)
+
+                def androidJar = new org.gradle.plugins.ide.eclipse.model.Library(
+                    fileReferenceFactory.fromPath("${android.sdkDirectory}/platforms/" + android.compileSdkVersion + "/android.jar"))
+                androidJar.sourcePath = fileReferenceFactory.fromPath("${android.sdkDirectory}/sources/" + android.compileSdkVersion)
+                classpath.entries.add(androidJar)
+              
+              	// this is a fudge, the eclipse plugin uses the project names for paths of subprojects, 
+              	// which naturally breaks the real classpath if different from the actual directory names
+              	if (project != rootProject) {
+               		classpath.entries.each { sub ->
+               			def fudge = rootProject.name + '-'
+                		if (sub.kind == 'src' && sub.path.toString().startsWith('/' + fudge)) {
+                			def p = sub.path.toString().replace(fudge, '');                                                         
+                			sub.path = new File(p)                                                      
+                		}
+                	}
+                }
+            }
+        }
+    }
+}
+
+eclipseClasspath.dependsOn "generateDebugSources"
+
+// user an unique name for subprojects, note that we undo this above for the classpath
+if (project != rootProject) {
+	eclipse.project.name = (rootProject.name + project.path).replaceAll(':', '-')
+}

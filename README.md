@@ -8,6 +8,10 @@ Include in build.gradle with
        
        apply from: 'https://raw.githubusercontent.com/simonpoole/gradle-tasks/master/eclipse-android'
        
+google doesn't allow resolving of configurations anymore in version 3 of the android plugin, however currently that can still simply be overridden, if you are using that plugin, use
+
+       apply from: 'https://raw.githubusercontent.com/simonpoole/gradle-tasks/master/eclipse-android-3'
+       
 ## publish-on-bintray-android
 
 Publish an android library on bintray including source and javadoc jars so that it can be published on jCenter 

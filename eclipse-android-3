@@ -1,19 +1,37 @@
-// generate eclipse classpath for android projects - version for android plugin 3 and gradle 3
+// generate eclipse classpath for android projects - version for android plugin 3 and gradle 3 
+// currently we explode the aars with eclipseAar but throw away the class path entries from it
 
 apply plugin: 'eclipse'
+apply plugin: 'com.github.ksoichiro.eclipse.aar' // this needs classpath 'com.github.ksoichiro:gradle-eclipse-aar-plugin:0.3.1' in the main build file
+
+task setResoveable {
+    // this is awlful but works ......
+    // both gradles and googles documentation of the changes wrt gradle 3.0 seems to not only be vague but outright wrong
+    configurations.implementation.setCanBeResolved(true)
+    configurations.testImplementation.setCanBeResolved(true)
+    configurations.androidTestImplementation.setCanBeResolved(true)
+}
+
+// Configure eclipse-aar plugin
+eclipseAar {
+    // See "Configurations" for details
+    androidTarget = 'android-25'
+    aarDependenciesDir = 'build/aarDependencies'
+    // Set to true if you use Andmore. Default is false
+    andmore = true
+    targetConfigurations =['implementation', 'testImplementation', 'androidTestImplementation']
+    cleanLibsDirectoryEnabled=true;
+}
 
 eclipse {
     classpath {
-        // this is awlful but works ......
-        // both gradles and googles documentation of the changes wrt gradle 3.0 seems to not only be vague but outright wrong
-        configurations.implementation.setCanBeResolved(true)
-        configurations.testImplementation.setCanBeResolved(true)
-        configurations.androidTestImplementation.setCanBeResolved(true)
+ 
         plusConfigurations += [ configurations.implementation, configurations.testImplementation, configurations.androidTestImplementation ]
 
         file {
             beforeMerged { classpath ->
-                classpath.entries.add(new org.gradle.plugins.ide.eclipse.model.SourceFolder("src/main/java", "bin"))
+                // classpath.entries.removeAll { it.kind.equals("src") } // throw everything added previously away
+                // classpath.entries.add(new org.gradle.plugins.ide.eclipse.model.SourceFolder("src/main/java", "bin"))
                 classpath.entries.add(new org.gradle.plugins.ide.eclipse.model.SourceFolder("src/test/java", "bin"))
                 classpath.entries.add(new org.gradle.plugins.ide.eclipse.model.SourceFolder("src/androidTest/java", "bin"))
                 // Hardcoded to use debug configuration
@@ -23,10 +41,12 @@ eclipse {
             }
 
             whenMerged { classpath ->
-                def aars = []
+               def aars = []
                 classpath.entries.each { dep ->
-                    if (dep.path.toString().endsWith(".aar")) {
-                        def explodedDir = new File(projectDir, "build/intermediates/exploded-aar/" + dep.moduleVersion.group + "/" + dep.moduleVersion.name + "/" + dep.moduleVersion.version + "/jars/")
+                    def pathString = dep.path.toString();
+                    println "processing " + pathString
+                    if (pathString.endsWith(".aar")) {
+                        def explodedDir = new File(projectDir, "build/aarDependencies/" + dep.moduleVersion.group + "-" + dep.moduleVersion.name + "-" + dep.moduleVersion.version + "/libs/")
                         if (explodedDir.exists()) {
                             explodedDir.eachFileRecurse(groovy.io.FileType.FILES) {
                                 if (it.getName().endsWith("jar")) {
@@ -38,11 +58,17 @@ eclipse {
                         } else {
                             println "Warning: Missing " + explodedDir
                         }
+                    } else if (pathString.endsWith(".jar")) {
+                        def jarFile = fileReferenceFactory.fromFile(new File(dep.path))
+                        def aJar = new org.gradle.plugins.ide.eclipse.model.Library(jarFile)
+                        aJar.sourcePath = jarFile
+                        aars.add(aJar)    
                     }
                 }
                 classpath.entries.removeAll { it.path.endsWith(".aar") }
+                classpath.entries.removeAll { it.path.endsWith(".jar") }
                 classpath.entries.addAll(aars)
-
+                
                 def androidJar = new org.gradle.plugins.ide.eclipse.model.Library(
                     fileReferenceFactory.fromPath("${android.sdkDirectory}/platforms/" + android.compileSdkVersion + "/android.jar"))
                 androidJar.sourcePath = fileReferenceFactory.fromPath("${android.sdkDirectory}/sources/" + android.compileSdkVersion)
@@ -64,6 +90,8 @@ eclipse {
     }
 }
 
+generateEclipseDependencies.dependsOn "setResoveable"
+eclipseClasspath.dependsOn "generateEclipseDependencies"
 eclipseClasspath.dependsOn "generateDebugSources"
 
 // user an unique name for subprojects, note that we undo this above for the classpath

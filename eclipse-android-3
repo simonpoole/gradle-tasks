@@ -94,7 +94,18 @@ generateEclipseDependencies.dependsOn "setResoveable"
 eclipseClasspath.dependsOn "generateEclipseDependencies"
 eclipseClasspath.dependsOn "generateDebugSources"
 
-// user an unique name for subprojects, note that we undo this above for the classpath
-if (project != rootProject) {
-	eclipse.project.name = (rootProject.name + project.path).replaceAll(':', '-')
+// this assumes emulator is on your path
+// it would be nice if this could be generated dynamicalls
+[ "8.0" ].each { avd ->
+    def name="avd${avd}"
+    task (name,type: Exec) {
+        if (System.getProperty('os.name').toLowerCase(Locale.ROOT).contains('windows')) {
+            commandLine 'cmd', '/c', 'start', '/b', 'emulator', '-avd', avd, '-ports', '5554,5555'
+        } else {
+            // untested assumes bash
+            commandLine 'coproc', 'emulator', '-avd', avd, '-ports', '5554,5555'
+        } 
+        group = 'emulators'       
+    }       
 }
+

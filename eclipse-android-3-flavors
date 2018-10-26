@@ -40,6 +40,7 @@ eclipse {
                 // classpath.entries.add(new org.gradle.plugins.ide.eclipse.model.SourceFolder("src/main/java", "bin"))
                 classpath.entries.add(new org.gradle.plugins.ide.eclipse.model.SourceFolder("src/test/java", "bin"))
                 classpath.entries.add(new org.gradle.plugins.ide.eclipse.model.SourceFolder("src/androidTest/java", "bin"))
+                classpath.entries.add(new org.gradle.plugins.ide.eclipse.model.SourceFolder("src/${flavor}/java", "bin"))
                 // Hardcoded to use debug configuration
                 classpath.entries.add(new org.gradle.plugins.ide.eclipse.model.SourceFolder("build/generated/not_namespaced_r_class_sources/currentDebug/process" + flavor.capitalize() + "DebugResources/r", "bin"))
                 classpath.entries.add(new org.gradle.plugins.ide.eclipse.model.SourceFolder("build/generated/source/buildConfig/${flavor}/debug", "bin"))

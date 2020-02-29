@@ -12,7 +12,7 @@ task setResoveable {
     configurations.androidTestImplementation.setCanBeResolved(true)
 }
 
-// currently the flavor is hardwired, but likely w ecould itereae over all flavors and create corresponding tasks
+// currently the flavor is hardwired, but likely we could iterate over all flavors and create corresponding tasks
 ext {
     flavor = "current"
 }
@@ -21,7 +21,7 @@ ext {
 // Configure eclipse-aar plugin
 eclipseAar {
     // See "Configurations" for details
-    androidTarget = 'android-27'
+    androidTarget = 'android-28'
     aarDependenciesDir = 'build/aarDependencies'
     // Set to true if you use Andmore. Default is false
     andmore = true
@@ -29,21 +29,23 @@ eclipseAar {
     cleanLibsDirectoryEnabled=true;
 }
 
-eclipse {
+eclipse {    
     project {
         natures 'org.eclipse.buildship.core.gradleprojectnature'
         natures 'net.sf.eclipsecs.core.CheckstyleBuilder'
     }
-    classpath {
- 
+    classpath { 
         plusConfigurations += [ configurations.implementation, configurations.testImplementation, configurations.androidTestImplementation ]
-
+        
         file {
             beforeMerged { classpath ->
-                // classpath.entries.removeAll { it.kind.equals("src") } // throw everything added previously away
+                classpath.entries.removeAll { it.path.startsWith("org.eclipse.andmore") }
+                classpath.entries.removeAll { it.path.startsWith("gen") }
+                classpath.entries.removeAll { it.path.startsWith("org.eclipse.jdt.launching.JRE_CONTAINER" ) }
+                classpath.entries.removeAll { it.kind.equals("src") } // throw everything added previously away
                 // classpath.entries.removeAll { it.kind.equals("bin") } // throw everything added previously away
                 // classpath.entries.removeAll { it.kind.equals("lib") } // throw everything added previously away
-                // classpath.entries.add(new org.gradle.plugins.ide.eclipse.model.SourceFolder("src/main/java", "bin"))
+                classpath.entries.add(new org.gradle.plugins.ide.eclipse.model.SourceFolder("src/main/java", "bin"))
                 classpath.entries.add(new org.gradle.plugins.ide.eclipse.model.SourceFolder("src/test/java", "bin"))
                 classpath.entries.add(new org.gradle.plugins.ide.eclipse.model.SourceFolder("src/androidTest/java", "bin"))
                 classpath.entries.add(new org.gradle.plugins.ide.eclipse.model.SourceFolder("src/${flavor}/java", "bin"))
@@ -55,29 +57,18 @@ eclipse {
 
             whenMerged { classpath ->
                def aars = []
-                classpath.entries.each { dep ->
-                    def pathString = dep.path.toString();
-                    println "processing " + pathString
-                    if (pathString.endsWith(".aar")) {
-                        def explodedDir = new File(projectDir, "build/aarDependencies/" + dep.moduleVersion.group + "-" + dep.moduleVersion.name + "-" + dep.moduleVersion.version + "/libs/")
-                        if (explodedDir.exists()) {
-                            explodedDir.eachFileRecurse(groovy.io.FileType.FILES) {
-                                if (it.getName().endsWith("jar")) {
-                                    def aarJar = new org.gradle.plugins.ide.eclipse.model.Library(fileReferenceFactory.fromFile(it))
-                                    aarJar.sourcePath = dep.sourcePath
-                                    aars.add(aarJar)
-                                }
-                            }
-                        } else {
-                            println "Warning: Missing " + explodedDir
-                        }
-                    } else if (pathString.endsWith(".jar")) {
-                        def jarFile = fileReferenceFactory.fromFile(new File(dep.path))
-                        def aJar = new org.gradle.plugins.ide.eclipse.model.Library(jarFile)
-                        aJar.sourcePath = jarFile
-                        aars.add(aJar)    
-                    }
-                }
+               def explodedDir = new File(projectDir, "libs/");
+               if (explodedDir.exists()) {
+                   explodedDir.eachFileRecurse(groovy.io.FileType.FILES) {
+                       if (it.getName().endsWith("jar")) {
+                           def jar = fileReferenceFactory.fromFile(it)
+                           def aarJar = new org.gradle.plugins.ide.eclipse.model.Library(jar)
+                           aarJar.sourcePath = jar
+                           println "processing " + aarJar.sourcePath
+                           aars.add(aarJar)
+                       }
+                   }
+               }
                 classpath.entries.removeAll { it.path.endsWith(".aar") }
                 classpath.entries.removeAll { it.path.endsWith(".jar") }
                 classpath.entries.addAll(aars)
@@ -108,7 +99,7 @@ eclipseClasspath.dependsOn "generateEclipseDependencies"
 eclipseClasspath.dependsOn "generateCurrentDebugSources"
 
 // this assumes emulator is on your path
-// it would be nice if this could be generated dynamicalls
+// it would be nice if this could be generated dynamically
 [ "8.0" ].each { avd ->
     def name="avd${avd}"
     task (name,type: Exec) {

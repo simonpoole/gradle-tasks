@@ -1,0 +1,118 @@
+// generate eclipse classpath for android projects - version for android plugin 3 and gradle 3 
+// currently we explode the aars with eclipseAar but throw away the class path entries from it
+
+apply plugin: 'eclipse'
+apply plugin: 'com.github.ksoichiro.eclipse.aar' // this needs classpath 'com.github.ksoichiro:gradle-eclipse-aar-plugin:0.3.1' in the main build file
+
+task setResoveable {
+    // this is awlful but works ......
+    // both gradles and googles documentation of the changes wrt gradle 3.0 seems to not only be vague but outright wrong
+    configurations.implementation.setCanBeResolved(true)
+    configurations.testImplementation.setCanBeResolved(true)
+    configurations.androidTestImplementation.setCanBeResolved(true)
+}
+
+// currently the flavor is hardwired, but likely we could iterate over all flavors and create corresponding tasks
+ext {
+    flavor = "current"
+}
+
+
+// Configure eclipse-aar plugin
+eclipseAar {
+    // See "Configurations" for details
+    androidTarget = 'android-28'
+    aarDependenciesDir = 'build/aarDependencies'
+    // Set to true if you use Andmore. Default is false
+    andmore = true
+    targetConfigurations = ["${flavor}DebugCompileClasspath", 'testImplementation', 'androidTestImplementation']
+    cleanLibsDirectoryEnabled=true;
+}
+
+eclipse {    
+    project {
+        natures 'org.eclipse.buildship.core.gradleprojectnature'
+        natures 'net.sf.eclipsecs.core.CheckstyleBuilder'
+    }
+    classpath { 
+        plusConfigurations += [ configurations.implementation, configurations.testImplementation, configurations.androidTestImplementation ]
+        
+        file {
+            beforeMerged { classpath ->
+                classpath.entries.removeAll { it.path.startsWith("org.eclipse.andmore") }
+                classpath.entries.removeAll { it.path.startsWith("gen") }
+                classpath.entries.removeAll { it.path.startsWith("org.eclipse.jdt.launching.JRE_CONTAINER" ) }
+                classpath.entries.removeAll { it.kind.equals("src") } // throw everything added previously away
+                // classpath.entries.removeAll { it.kind.equals("bin") } // throw everything added previously away
+                // classpath.entries.removeAll { it.kind.equals("lib") } // throw everything added previously away
+                classpath.entries.add(new org.gradle.plugins.ide.eclipse.model.SourceFolder("src/main/java", "bin"))
+                classpath.entries.add(new org.gradle.plugins.ide.eclipse.model.SourceFolder("src/test/java", "bin"))
+                classpath.entries.add(new org.gradle.plugins.ide.eclipse.model.SourceFolder("src/androidTest/java", "bin"))
+                classpath.entries.add(new org.gradle.plugins.ide.eclipse.model.SourceFolder("src/${flavor}/java", "bin"))
+                // Hardcoded to use debug configuration
+                classpath.entries.add(new org.gradle.plugins.ide.eclipse.model.SourceFolder("build/generated/source/buildConfig/${flavor}/debug", "bin"))
+                classpath.entries.add(new org.gradle.plugins.ide.eclipse.model.SourceFolder("build/generated/aidl_source_output_dir/${flavor}Debug/out", "bin"))
+            }
+
+            whenMerged { classpath ->
+               def aars = []
+               def explodedDir = new File(projectDir, "libs/");
+               if (explodedDir.exists()) {
+                   explodedDir.eachFileRecurse(groovy.io.FileType.FILES) {
+                       if (it.getName().endsWith("jar")) {
+                           def jar = fileReferenceFactory.fromFile(it)
+                           def aarJar = new org.gradle.plugins.ide.eclipse.model.Library(jar)
+                           aarJar.sourcePath = jar
+                           println "processing " + aarJar.sourcePath
+                           aars.add(aarJar)
+                       }
+                   }
+               }
+                classpath.entries.removeAll { it.path.endsWith(".aar") }
+                classpath.entries.removeAll { it.path.endsWith(".jar") }
+                classpath.entries.addAll(aars)
+                
+                def androidJar = new org.gradle.plugins.ide.eclipse.model.Library(
+                    fileReferenceFactory.fromPath("${android.sdkDirectory}/platforms/" + android.compileSdkVersion + "/android.jar"))
+                androidJar.sourcePath = fileReferenceFactory.fromPath("${android.sdkDirectory}/sources/" + android.compileSdkVersion)
+                classpath.entries.add(androidJar)
+                
+                def classesJar = new org.gradle.plugins.ide.eclipse.model.Library(
+                    fileReferenceFactory.fromPath("build/intermediates/app_classes/${flavor}Debug/classes.jar"))
+                classpath.entries.add(classesJar)
+              
+              	// this is a fudge, the eclipse plugin uses the project names for paths of subprojects, 
+              	// which naturally breaks the real classpath if different from the actual directory names
+              	if (project != rootProject) {
+               		classpath.entries.each { sub ->
+               			def fudge = rootProject.name + '-'
+                		if (sub.kind == 'src' && sub.path.toString().startsWith('/' + fudge)) {
+                			def p = sub.path.toString().replace(fudge, '');                                                         
+                			sub.path = new File(p)                                                      
+                		}
+                	}
+                }
+            }
+        }
+    }
+}
+
+generateEclipseDependencies.dependsOn "setResoveable"
+eclipseClasspath.dependsOn "generateEclipseDependencies"
+eclipseClasspath.dependsOn "generateCurrentDebugSources"
+
+// this assumes emulator is on your path
+// it would be nice if this could be generated dynamically
+[ "8.0" ].each { avd ->
+    def name="avd${avd}"
+    task (name,type: Exec) {
+        if (System.getProperty('os.name').toLowerCase(Locale.ROOT).contains('windows')) {
+            commandLine 'cmd', '/c', 'start', '/b', 'emulator', '-avd', avd, '-ports', '5554,5555'
+        } else {
+            // untested assumes bash
+            commandLine 'coproc', 'emulator', '-avd', avd, '-ports', '5554,5555'
+        } 
+        group = 'emulators'       
+    }       
+}
+

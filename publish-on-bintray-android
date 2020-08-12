@@ -17,7 +17,9 @@ android.libraryVariants.all { variant ->
     group "Documentation"
     source = variant.javaCompile.source
     destinationDir = file(buildDir.getPath() + "/docs/" + variant.name +  "/javadoc")
-    classpath = files(variant.javaCompile.classpath.files) + files(android.bootClasspath) + files(variant.javaCompile.destinationDir)
+    doLast {
+        classpath = files(variant.javaCompile.classpath.files) + files(android.bootClasspath) + files(variant.javaCompile.destinationDir)
+    }
     options.links("http://docs.oracle.com/javase/7/docs/api/");
     options.links("http://d.android.com/reference/");
     exclude '**/BuildConfig.java'

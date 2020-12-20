@@ -34,6 +34,10 @@ eclipse {
         natures 'org.eclipse.buildship.core.gradleprojectnature'
         natures 'net.sf.eclipsecs.core.CheckstyleBuilder'
     }
+    jdt {
+        sourceCompatibility = 1.8
+        targetCompatibility = 1.8
+    }
     classpath { 
         plusConfigurations += [ configurations.implementation, configurations.testImplementation, configurations.androidTestImplementation ]
         

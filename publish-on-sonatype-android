@@ -1,0 +1,102 @@
+//
+// publish an android library on bintray
+// expects GROUP ARTIFACT_ID POM_SCM_URL POM_URL POM_DESCRIPTION POM_DEVELOPER_NAME POP_LICENCE_URL POM_SPDX to be set
+
+repositories {
+  mavenCentral()
+}
+	
+apply plugin: 'maven-publish'
+apply plugin: 'signing'
+
+android.libraryVariants.all { variant ->
+  task("generate${variant.name.capitalize()}Javadoc", type: Javadoc) {
+    description "Generates Javadoc for $variant.name."
+    group "Documentation"
+    source = variant.javaCompile.source
+    destinationDir = file(buildDir.getPath() + "/docs/" + variant.name +  "/javadoc")
+    doLast {
+        classpath = files(variant.javaCompile.classpath.files) + files(android.bootClasspath) + files(variant.javaCompile.destinationDir)
+    }
+    options.links("http://docs.oracle.com/javase/7/docs/api/");
+    options.links("http://d.android.com/reference/");
+    exclude '**/BuildConfig.java'
+    exclude '**/R.java'
+  }
+}
+
+task sourcesJar(type: Jar) {
+	from android.sourceSets.main.java.srcDirs
+	classifier = 'sources'
+}
+
+task javadocJar(type: Jar, dependsOn: 'generateReleaseJavadoc') {
+	classifier = 'javadoc'
+	from file(buildDir.getPath() + "/docs/release/javadoc")
+	//	options.encoding = 'UTF-8'
+	failOnError = false
+}
+
+group GROUP
+
+publishing {
+    publications {
+        thisLibrary(MavenPublication) {
+            groupId GROUP
+            artifactId ARTIFACT_ID
+			artifact sourcesJar 
+			artifact javadocJar 
+			artifact("$buildDir/outputs/aar/" + ARTIFACT_ID + "-release.aar")
+			
+			pom {
+                name = artifactId
+                description = POM_DESCRIPTION    
+                url = POM_URL
+                scm {
+                    url = POM_SCM_URL
+                }
+                licenses {
+                    license {
+                        name = POM_SPDX
+                        url = POM_LICENCE_URL
+                    }
+                }
+                developers {
+                    developer {
+                        name = POM_DEVELOPER_NAME
+                    }
+                }
+            }
+            repositories {
+                maven {
+                    name = 'sonatype'
+                    credentials {
+                        username ossrhUsername
+                        password ossrhPassword
+                    }
+                    def releasesRepoUrl = "https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/"
+                    def snapshotsRepoUrl = "https://s01.oss.sonatype.org/content/repositories/snapshots/"
+                    url = version.endsWith('SNAPSHOT') ? snapshotsRepoUrl : releasesRepoUrl
+                }
+            }
+			
+			//The publication doesn't know about our dependencies, so we have to manually add them to the pom
+			// see https://stackoverflow.com/questions/24743562/gradle-not-including-dependencies-in-published-pom-xml
+			pom.withXml {
+    			def dependenciesNode = asNode().appendNode('dependencies')
+
+    			//Iterate over the compile dependencies (we don't want the test ones), adding a <dependency> node for each
+    			configurations.compile.allDependencies.each {
+        		def dependencyNode = dependenciesNode.appendNode('dependency')
+        			dependencyNode.appendNode('groupId', it.group)
+        			dependencyNode.appendNode('artifactId', it.name)
+        			dependencyNode.appendNode('version', it.version)
+    			}
+			}
+        }
+    }
+}
+
+signing {
+    sign publishing.publications.thisLibrary
+}

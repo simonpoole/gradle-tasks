@@ -30,11 +30,17 @@ task sourcesJar(type: Jar) {
 	classifier = 'sources'
 }
 
+tasks.withType(Javadoc) {
+      failOnError false
+      options.addStringOption('Xdoclint:none', '-quiet')
+      options.addStringOption('encoding', 'UTF-8')
+      options.addStringOption('charSet', 'UTF-8')
+}
+
 task javadocJar(type: Jar, dependsOn: 'generateReleaseJavadoc') {
 	classifier = 'javadoc'
 	from file(buildDir.getPath() + "/docs/release/javadoc")
 	//	options.encoding = 'UTF-8'
-	failOnError = false
 }
 
 group GROUP
@@ -46,7 +52,7 @@ publishing {
             artifactId ARTIFACT_ID
 			artifact sourcesJar 
 			artifact javadocJar 
-			artifact("$buildDir/outputs/aar/" + ARTIFACT_ID + "-release.aar")
+			artifact("$buildDir/outputs/aar/" + ARTIFACT_ID + "-" + version + ".aar")
 			
 			pom {
                 name = artifactId

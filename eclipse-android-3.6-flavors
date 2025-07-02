@@ -2,7 +2,7 @@
 // currently we explode the aars with eclipseAar but throw away the class path entries from it
 
 apply plugin: 'eclipse'
-apply plugin: 'com.github.ksoichiro.eclipse.aar' // this needs classpath 'com.github.ksoichiro:gradle-eclipse-aar-plugin:0.3.1' in the main build file
+apply plugin: 'ch.poole.misc.eclipse.aar' // this needs classpath 'ch.poole.misc:gradle-eclipse-aar-plugin:0.1.0' in the main build file
 
 task setResoveable {
     // this is awlful but works ......

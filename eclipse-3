@@ -1,0 +1,10 @@
+// generate eclipse classpath for android projects 
+
+apply plugin: 'eclipse'
+
+eclipseClasspath.dependsOn "generateDebugSources"
+
+// use an unique name for subprojects, note that we undo this above for the classpath
+if (project != rootProject) {
+	eclipse.project.name = (rootProject.name + project.path).replaceAll(':', '-')
+}
